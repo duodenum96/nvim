@@ -42,6 +42,32 @@ local function open_repl_win(buf)
     return win
 end
 
+-- Fixed width windows (like REPL column) keep their width when a window next to
+-- them is closed. Otherwise closing 'sidekick.nvim' window (to the right of REPL
+-- column) gives all its space to REPL column instead of code.
+Config.new_autocmd("WinClosed", "*", function(ev)
+    local closed = tonumber(ev.match)
+    if vim.api.nvim_win_get_config(closed).relative ~= "" then
+        return
+    end
+
+    local widths = {}
+    for _, win in ipairs(vim.api.nvim_tabpage_list_wins(vim.api.nvim_win_get_tabpage(closed))) do
+        if win ~= closed and vim.wo[win].winfixwidth then
+            widths[win] = vim.api.nvim_win_get_width(win)
+        end
+    end
+
+    -- Restore after the window is actually closed
+    vim.schedule(function()
+        for win, width in pairs(widths) do
+            if vim.api.nvim_win_is_valid(win) then
+                vim.api.nvim_win_set_width(win, width)
+            end
+        end
+    end)
+end, "Keep width of fixed width windows")
+
 local function start_repl_for_filetype()
     local ft = vim.bo.filetype
     local cmd = repl_commands[ft]
@@ -285,25 +311,27 @@ vim.keymap.set("n", "rt", function()
     end
 
     -- Check if terminal is visible in any window
-    local terminal_visible = false
     local terminal_win = nil
 
     for _, win in ipairs(vim.api.nvim_list_wins()) do
         if vim.api.nvim_win_get_buf(win) == terminal_bufnr then
-            terminal_visible = true
             terminal_win = win
             break
         end
     end
 
-    if terminal_visible then
-        -- Hide terminal
-        vim.api.nvim_win_hide(terminal_win)
+    -- Terminal and figure pane (see 'plugin/55_figures.lua') act as one
+    if terminal_win or Config.figures.win() then
+        if terminal_win then
+            vim.api.nvim_win_hide(terminal_win)
+        end
+        Config.figures.close()
     else
-        -- Show terminal
+        -- Terminal first, so that figure pane opens above it
         open_repl_win(terminal_bufnr)
+        Config.figures.open()
     end
-end, { noremap = true, silent = true, desc = "Toggle REPL terminal" })
+end, { noremap = true, silent = true, desc = "Toggle REPL terminal and figure pane" })
 
 -- Explicit hide terminal
 vim.keymap.set("n", "rh", function()

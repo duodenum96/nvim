@@ -140,10 +140,18 @@ watcher:start(M.dir, {}, function(err, name)
   vim.schedule(function() add_figure(name) end)
 end)
 
-M.toggle = function()
+-- Show pane with the current figure, if there is any
+M.open = function()
+  if #figures > 0 and not M.win() then show(current) end
+end
+
+M.close = function()
   local win = M.win()
-  if win then return vim.api.nvim_win_hide(win) end
-  if #figures > 0 then show(current) end
+  if win then vim.api.nvim_win_hide(win) end
+end
+
+M.toggle = function()
+  if M.win() then M.close() else M.open() end
 end
 
 M.cycle = function(direction)
