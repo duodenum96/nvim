@@ -1,0 +1,23 @@
+# Colors from 'ayu-dark' color scheme. The rest is like the 'dark_background'
+# style from matplotlib. Line colors are in the order of the default ones:
+# blue, orange, green, red, purple, ...
+
+figure.facecolor: 0b0e14
+figure.edgecolor: 0b0e14
+axes.facecolor:   0b0e14
+axes.edgecolor:   bfbdb6
+axes.labelcolor:  bfbdb6
+axes.prop_cycle:  cycler('color', ['59c2ff', 'ff8f40', 'aad94c', 'f07178', 'd2a6ff', 'ffb454', '95e6cb', '39bae6', 'e6b673', 'f29668'])
+text.color:       bfbdb6
+xtick.color:      bfbdb6
+ytick.color:      bfbdb6
+grid.color:       3c414a
+legend.edgecolor: 3c414a
+lines.color:      bfbdb6
+patch.edgecolor:  bfbdb6
+
+boxplot.boxprops.color:              bfbdb6
+boxplot.capprops.color:              bfbdb6
+boxplot.flierprops.color:            bfbdb6
+boxplot.flierprops.markeredgecolor:  bfbdb6
+boxplot.whiskerprops.color:          bfbdb6

@@ -62,9 +62,11 @@ now(function()
       windows = true,
       -- Create `<M-hjkl>` mappings for navigation in Insert and Command modes
       move_with_alt = true,
-    },
+      },
   })
 end)
+
+vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>', { desc = 'Clear search highlight' })
 
 -- Icon provider. Usually no need to use manually. It is used by plugins like
 -- 'mini.pick', 'mini.files', 'mini.statusline', and others.
@@ -111,7 +113,41 @@ now(function() require('mini.sessions').setup() end)
 -- See also:
 -- - `:h MiniStarter-example-config` - non-default config examples
 -- - `:h MiniStarter-lifecycle` - how to work with Starter buffer
-now(function() require('mini.starter').setup() end)
+now(function()
+  -- Logo shown at the top of the greeter. All lines are padded by the same
+  -- amount when centered, so the picture keeps its shape.
+  local logo = [[
+ ______            _______  ______   _______          _________ _______
+(  __  \ |\     /|(  ___  )(  __  \ (  ____ \|\     /|\__   __/(       )
+| (  \  )| )   ( || (   ) || (  \  )| (    \/| )   ( |   ) (   | () () |
+| |   ) || |   | || |   | || |   ) || (__    | |   | |   | |   | || || |
+| |   | || |   | || |   | || |   | ||  __)   ( (   ) )   | |   | |(_)| |
+| |   ) || |   | || |   | || |   ) || (       \ \_/ /    | |   | |   | |
+| (__/  )| (___) || (___) || (__/  )| (____/\  \   /  ___) (___| )   ( |
+(______/ (_______)(_______)(______/ (_______/   \_/   \_______/|/     \|
+
+                        ______   ______   ______
+                      / ____ \ / ____ \ / ____ \
+                      ( (    \/( (    \/( (    \/
+                      | (____  | (____  | (____
+                      |  ___ \ |  ___ \ |  ___ \
+                      | (   ) )| (   ) )| (   ) )
+                      ( (___) )( (___) )( (___) )
+                       \_____/  \_____/  \_____/]]
+
+  -- Same greeting as the default 'mini.starter' header, shown under the logo
+  local greeting = function()
+    local hour = tonumber(vim.fn.strftime('%H'))
+    -- [04:00, 12:00) - morning, [12:00, 20:00) - day, [20:00, 04:00) - evening
+    local day_part = ({ 'evening', 'morning', 'afternoon', 'evening' })[math.floor((hour + 4) / 8) + 1]
+    local username = vim.uv.os_get_passwd().username or 'USERNAME'
+    return ('Good %s, %s'):format(day_part, username)
+  end
+
+  require('mini.starter').setup({
+    header = function() return logo .. '\n\n' .. greeting() end,
+  })
+end)
 
 -- Statusline. Sets `:h 'statusline'` to show more info in a line below window.
 -- Example usage:
@@ -124,7 +160,17 @@ now(function() require('mini.starter').setup() end)
 -- See also:
 -- - `:h MiniStatusline-example-content` - example of default content. Use it to
 --   configure a custom statusline by setting `config.content.active` function.
-now(function() require('mini.statusline').setup() end)
+now(function()
+  require('mini.statusline').setup()
+
+  -- Show mode name in all caps ("NORMAL" instead of "Normal"). Wrapping the
+  -- section keeps the rest of the default content as is.
+  local section_mode = MiniStatusline.section_mode
+  MiniStatusline.section_mode = function(...)
+    local mode, mode_hl = section_mode(...)
+    return mode:upper(), mode_hl
+  end
+end)
 
 -- Tabline. Sets `:h 'tabline'` to show all listed buffers in a line at the top.
 -- Buffers are ordered as they were created. Navigate with `[b` and `]b`.
@@ -554,7 +600,10 @@ later(function() require('mini.jump').setup() end)
 --
 -- See also:
 -- - `:h MiniJump2d.gen_spotter` - list of available spotters
-later(function() require('mini.jump2d').setup() end)
+-- Set up in 'plugin/50_yasir.lua'. Calling `setup()` here would run after it
+-- and override its config and `<CR>` mapping.
+-- later(function() require('mini.jump2d').setup() end)
+
 
 -- Special key mappings. Provides helpers to map:
 -- - Multi-step actions. Apply action 1 if condition is met; else apply
@@ -648,9 +697,10 @@ later(function()
   -- - It overrides `:h (` and `:h )`.
   -- Explanation: `gx`-`ia`-`gx`-`ila` <=> exchange current and last argument
   -- Usage: when on `a` in `(aa, bb)` press `)` followed by `(`.
-  vim.keymap.set('n', '(', 'gxiagxila', { remap = true, desc = 'Swap arg left' })
-  vim.keymap.set('n', ')', 'gxiagxina', { remap = true, desc = 'Swap arg right' })
+  vim.keymap.set('n', 'C-(', 'gxiagxila', { remap = true, desc = 'Swap arg left' })
+  vim.keymap.set('n', 'C-)', 'gxiagxina', { remap = true, desc = 'Swap arg right' })
 end)
+
 
 -- Autopairs functionality. Insert pair when typing opening character and go over
 -- right character if it is already to cursor's right. Also provides mappings for
@@ -777,6 +827,7 @@ end)
 -- - `:h MiniSplitjoin.gen_hook` - list of available hooks
 later(function() require('mini.splitjoin').setup() end)
 
+
 -- Surround actions: add/delete/replace/find/highlight. Working with surroundings
 -- is surprisingly common: surround word with quotes, replace `)` with `]`, etc.
 -- This module comes with many built-in surroundings, each identified by a single
@@ -805,7 +856,7 @@ later(function() require('mini.surround').setup() end)
 -- Highlight and remove trailspace. Temporarily stops highlighting in Insert mode
 -- to reduce noise when typing. Example usage:
 -- - `<Leader>ot` - trim all trailing whitespace in a buffer
-later(function() require('mini.trailspace').setup() end)
+-- later(function() require('mini.trailspace').setup() end)
 
 -- Track and reuse file system visits. Every file/directory visit is persistently
 -- tracked on disk to later reuse: show in special frecency order, etc. It also
@@ -825,3 +876,27 @@ later(function() require('mini.visits').setup() end)
 -- - 'mini.doc' - needed only for plugin developers.
 -- - 'mini.fuzzy' - not really needed on a daily basis.
 -- - 'mini.test' - needed only for plugin developers.
+
+
+-- yasir: for colorschemes
+
+vim.cmd.colorscheme("catppuccin")
+-- vim.cmd.colorscheme("ayu-dark")
+vim.pack.add({
+	{
+		src = "https://github.com/rose-pine/neovim",
+		name = "rose-pine",
+	},
+})
+require("rose-pine").setup()
+-- vim.cmd("colorscheme rose-pine")
+
+vim.keymap.set("n", "<leader>uc", function()
+  local themes = vim.fn.getcompletion("", "color")
+  vim.ui.select(themes, { prompt = "Select colorscheme:" }, function(choice)
+    if choice then
+      vim.cmd.colorscheme(choice)
+    end
+  end)
+end, { desc = "Colorscheme picker" })
+

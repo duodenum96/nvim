@@ -1,0 +1,22 @@
+# Colors from 'miniwinter' color scheme. The rest is like the 'dark_background'
+# style from matplotlib.
+
+figure.facecolor: 11262d
+figure.edgecolor: 11262d
+axes.facecolor:   11262d
+axes.edgecolor:   b8b4ad
+axes.labelcolor:  d8d4cd
+axes.prop_cycle:  cycler('color', ['8dd3c7', 'feffb3', 'bfbbd9', 'fa8174', '81b1d2', 'fdb462', 'b3de69', 'bc82bd', 'ccebc4', 'ffed6f'])
+text.color:       d8d4cd
+xtick.color:      b8b4ad
+ytick.color:      b8b4ad
+grid.color:       485f67
+legend.edgecolor: 485f67
+lines.color:      d8d4cd
+patch.edgecolor:  d8d4cd
+
+boxplot.boxprops.color:              d8d4cd
+boxplot.capprops.color:              d8d4cd
+boxplot.flierprops.color:            d8d4cd
+boxplot.flierprops.markeredgecolor:  d8d4cd
+boxplot.whiskerprops.color:          d8d4cd

@@ -19,6 +19,9 @@ end
 nmap('[p', '<Cmd>exe "iput! " . v:register<CR>', 'Paste Above')
 nmap(']p', '<Cmd>exe "iput "  . v:register<CR>', 'Paste Below')
 
+-- Exit Terminal mode with an easier to reach alternative to `<C-\><C-n>`
+vim.keymap.set('t', '<C-\\><C-\\>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
+
 -- Many general mappings are created by 'mini.basics'. See 'plugin/30_mini.lua'
 
 -- stylua: ignore start
@@ -50,6 +53,7 @@ nmap(']p', '<Cmd>exe "iput "  . v:register<CR>', 'Paste Below')
 -- This is used to provide 'mini.clue' with extra clues.
 -- Add an entry if you create a new group.
 Config.leader_group_clues = {
+  { mode = 'n', keys = '<Leader>a', desc = '+AI' },
   { mode = 'n', keys = '<Leader>b', desc = '+Buffer' },
   { mode = 'n', keys = '<Leader>e', desc = '+Explore/Edit' },
   { mode = 'n', keys = '<Leader>f', desc = '+Find' },
@@ -61,6 +65,7 @@ Config.leader_group_clues = {
   { mode = 'n', keys = '<Leader>t', desc = '+Terminal' },
   { mode = 'n', keys = '<Leader>v', desc = '+Visits' },
 
+  { mode = 'x', keys = '<Leader>a', desc = '+AI' },
   { mode = 'x', keys = '<Leader>g', desc = '+Git' },
   { mode = 'x', keys = '<Leader>l', desc = '+Language' },
 }
@@ -155,6 +160,9 @@ nmap_leader('fS', '<Cmd>Pick lsp scope="document_symbol"<CR>',  'Symbols documen
 nmap_leader('fv', '<Cmd>Pick visit_paths cwd=""<CR>',           'Visit paths (all)')
 nmap_leader('fV', '<Cmd>Pick visit_paths<CR>',                  'Visit paths (cwd)')
 
+-- Quicker alias for `<Leader>ff`
+nmap_leader('<Leader>', '<Cmd>Pick files<CR>', 'Files')
+
 -- g is for 'Git'. Common usage:
 -- - `<Leader>gs` - show information at cursor
 -- - `<Leader>go` - toggle 'mini.diff' overlay to show in-buffer unstaged changes
@@ -246,4 +254,14 @@ nmap_leader('vv', '<Cmd>lua MiniVisits.add_label("core")<CR>',    'Add "core" la
 nmap_leader('vV', '<Cmd>lua MiniVisits.remove_label("core")<CR>', 'Remove "core" label')
 nmap_leader('vl', '<Cmd>lua MiniVisits.add_label()<CR>',          'Add label')
 nmap_leader('vL', '<Cmd>lua MiniVisits.remove_label()<CR>',       'Remove label')
+
+-- w is for 'Window'. Acts as `<C-w>` so window commands don't need holding Ctrl.
+-- Common usage:
+-- - `<Leader>wv` / `<Leader>ws` - split vertically / horizontally
+-- - `<Leader>wq` / `<Leader>wo` - quit current / close all other windows
+-- - `<Leader>wh` - focus window to the left (same for `j`, `k`, `l`)
+--
+-- It is recursive (`remap = true`) to trigger 'mini.clue' `<C-w>` clues and
+-- its resize submode (like `<Leader>w+++`).
+vim.keymap.set('n', '<Leader>w', '<C-w>', { remap = true, desc = '+Window' })
 -- stylua: ignore end

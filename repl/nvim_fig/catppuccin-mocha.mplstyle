@@ -1,0 +1,23 @@
+# Colors from 'catppuccin' color scheme (mocha flavor). The rest is like the
+# 'dark_background' style from matplotlib. Line colors are in the order of the
+# default ones: blue, orange, green, red, purple, ...
+
+figure.facecolor: 1e1e2e
+figure.edgecolor: 1e1e2e
+axes.facecolor:   1e1e2e
+axes.edgecolor:   a6adc8
+axes.labelcolor:  cdd6f4
+axes.prop_cycle:  cycler('color', ['89b4fa', 'fab387', 'a6e3a1', 'f38ba8', 'cba6f7', 'f9e2af', '94e2d5', 'f5c2e7', '89dceb', 'b4befe'])
+text.color:       cdd6f4
+xtick.color:      a6adc8
+ytick.color:      a6adc8
+grid.color:       45475a
+legend.edgecolor: 45475a
+lines.color:      cdd6f4
+patch.edgecolor:  cdd6f4
+
+boxplot.boxprops.color:              cdd6f4
+boxplot.capprops.color:              cdd6f4
+boxplot.flierprops.color:            cdd6f4
+boxplot.flierprops.markeredgecolor:  cdd6f4
+boxplot.whiskerprops.color:          cdd6f4
