@@ -32,7 +32,14 @@ Config.later(function()
       -- Claude Code draws in fullscreen mode (alternate screen), so tmux keeps
       -- no history for sidekick's scrollback buffer to show. Let Claude scroll
       -- by itself instead: mouse wheel, `PgUp`/`PgDn`, `<C-o>` for transcript.
-      tools = { claude = { native_scroll = true } },
+      tools = {
+        claude = {
+          native_scroll = true,
+          -- Add hook which saves files before Claude edits them, to review
+          -- changes hunk by hunk (see 'plugin/95_claude_review.lua')
+          cmd = { 'claude', '--settings', Config.claude_review_settings },
+        },
+      },
     },
   })
 

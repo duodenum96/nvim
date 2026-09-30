@@ -70,11 +70,11 @@ vim.o.formatoptions = 'rqnl1j'-- Improve comment editing
 vim.o.ignorecase    = true    -- Ignore case during search
 vim.o.incsearch     = true    -- Show search matches while typing
 vim.o.infercase     = true    -- Infer case in built-in completion
-vim.o.shiftwidth    = 2       -- Use this number of spaces for indentation
+vim.o.shiftwidth    = 4       -- Use this number of spaces for indentation
 vim.o.smartcase     = true    -- Respect case if search pattern has upper case
 vim.o.smartindent   = true    -- Make indenting smart
 vim.o.spelloptions  = 'camel' -- Treat camelCase word parts as separate words
-vim.o.tabstop       = 2       -- Show tab as this number of spaces
+vim.o.tabstop       = 4       -- Show tab as this number of spaces
 vim.o.virtualedit   = 'block' -- Allow going past end of line in blockwise mode
 
 vim.o.iskeyword = '@,48-57,_,192-255,-' -- Treat dash as `word` textobject part
