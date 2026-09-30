@@ -59,6 +59,7 @@ Config.leader_group_clues = {
   { mode = 'n', keys = '<Leader>f', desc = '+Find' },
   { mode = 'n', keys = '<Leader>g', desc = '+Git' },
   { mode = 'n', keys = '<Leader>l', desc = '+Language' },
+  { mode = 'n', keys = '<Leader>lj', desc = '+JET (Julia)' },
   { mode = 'n', keys = '<Leader>m', desc = '+Map' },
   { mode = 'n', keys = '<Leader>o', desc = '+Other' },
   { mode = 'n', keys = '<Leader>s', desc = '+Session' },
@@ -68,6 +69,7 @@ Config.leader_group_clues = {
   { mode = 'x', keys = '<Leader>a', desc = '+AI' },
   { mode = 'x', keys = '<Leader>g', desc = '+Git' },
   { mode = 'x', keys = '<Leader>l', desc = '+Language' },
+  { mode = 'x', keys = '<Leader>lj', desc = '+JET (Julia)' },
 }
 
 -- Helpers for a more concise `<Leader>` mappings.

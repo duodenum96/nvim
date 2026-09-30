@@ -22,8 +22,10 @@ vim.g.slime_default_config = {
 local repl_commands = {
     -- python = "mamba activate aj_int && python",
     python = 'eval "$(mamba shell hook --shell zsh)" && mamba activate numpyro && python',
-    -- `-L` file shows plots in figure pane (see 'plugin/55_figures.lua')
-    julia = "julia --project=. --threads=20 -L " .. vim.fn.shellescape(Config.figures.julia_file),
+    -- `-L` files show plots in figure pane (see 'plugin/55_figures.lua') and
+    -- run JET analyses from Neovim (see 'plugin/58_jet.lua')
+    julia = "julia --project=. --threads=20 -L " .. vim.fn.shellescape(Config.figures.julia_file)
+        .. " -L " .. vim.fn.shellescape(Config.jet.julia_file),
     -- julia = "julia --project=. --threads=20 --sysimage=./sys.so",
 }
 
@@ -85,8 +87,9 @@ local function start_repl_for_filetype()
 
     local buf = vim.api.nvim_create_buf(true, false)
     vim.api.nvim_win_call(open_repl_win(buf), function()
-        -- Environment makes REPL send plots to figure pane
-        terminal_jobid = vim.fn.jobstart(cmd, { term = true, env = Config.figures.env() })
+        -- Environment makes REPL send plots to figure pane and JET reports to Neovim
+        local env = vim.tbl_extend("force", Config.figures.env(), Config.jet.env())
+        terminal_jobid = vim.fn.jobstart(cmd, { term = true, env = env })
     end)
     terminal_bufnr = buf
     Config.figures.repl_buf = buf
@@ -209,6 +212,16 @@ local function ensure_slime_config()
         return true
     end
     return false
+end
+
+-- Run code in the REPL, starting it if needed. Used in 'plugin/58_jet.lua'.
+Config.repl_send = function(code)
+    if not ensure_slime_config() then
+        return false
+    end
+    vim.api.nvim_chan_send(terminal_jobid, code .. "\n")
+    scroll_terminal_to_bottom()
+    return true
 end
 
 local function send_and_execute(start_line, end_line)

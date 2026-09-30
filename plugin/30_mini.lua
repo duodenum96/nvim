@@ -95,7 +95,11 @@ end)
 --
 -- See also:
 -- - `:h MiniNotify.config` for some of common configuration examples.
-now(function() require('mini.notify').setup() end)
+now(function()
+  -- Don't show language server progress (like JETLS analyzing a file after
+  -- save). A small icon in statusline is shown instead (see below).
+  require('mini.notify').setup({ lsp_progress = { enable = false } })
+end)
 
 -- Session management. A thin wrapper around `:h mksession` that consistently
 -- manages session files. Example usage:
@@ -169,6 +173,30 @@ now(function()
   MiniStatusline.section_mode = function(...)
     local mode, mode_hl = section_mode(...)
     return mode:upper(), mode_hl
+  end
+
+  -- Show hourglass after LSP section while a language server is working (like
+  -- JETLS analyzing a file after save), instead of notifications about it.
+  -- Tracked per server and progress token until its "end" report.
+  local in_progress = {}
+  Config.new_autocmd('LspProgress', '*', function(ev)
+    local key = ev.data.client_id .. ':' .. tostring(ev.data.params.token)
+    in_progress[key] = ev.data.params.value.kind ~= 'end' or nil
+    vim.cmd('redrawstatus')
+  end, 'Track LSP progress')
+  -- Server can stop in the middle of work
+  Config.new_autocmd('LspDetach', '*', function(ev)
+    for key in pairs(in_progress) do
+      if vim.startswith(key, ev.data.client_id .. ':') then in_progress[key] = nil end
+    end
+  end, 'Forget LSP progress')
+
+  local hourglass = vim.fn.nr2char(0xf252)
+  local section_lsp = MiniStatusline.section_lsp
+  MiniStatusline.section_lsp = function(...)
+    local lsp = section_lsp(...)
+    if lsp == '' or next(in_progress) == nil then return lsp end
+    return lsp .. ' ' .. hourglass
   end
 end)
 
