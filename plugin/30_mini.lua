@@ -106,7 +106,24 @@ end)
 -- - `<Leader>sn` - start new session
 -- - `<Leader>sr` - read previously started session
 -- - `<Leader>sd` - delete previously started session
-now(function() require('mini.sessions').setup() end)
+--
+-- REPL terminal and figure pane (see 'plugin/60_slime.lua') are not restored:
+-- REPL is started anew when code is sent, so the restored one would be unused.
+-- - Don't save terminals and windows without file (like figure pane).
+-- - Clean up sessions which were saved with them (until they are saved again).
+vim.opt.sessionoptions:remove({ 'terminal', 'blank' })
+
+local session_cleanup = function()
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    local is_empty = vim.api.nvim_buf_get_name(b) == '' and not vim.bo[b].modified
+      and vim.api.nvim_buf_line_count(b) == 1 and vim.api.nvim_buf_get_lines(b, 0, 1, false)[1] == ''
+    local is_extra = vim.bo[b].buftype == 'terminal' or (is_empty and #vim.api.nvim_list_wins() > 1)
+    -- Wipe to also close windows and stop terminal process
+    if is_extra then pcall(vim.api.nvim_buf_delete, b, { force = true }) end
+  end
+end
+
+now(function() require('mini.sessions').setup({ hooks = { post = { read = session_cleanup } } }) end)
 
 -- Start screen. This is what is shown when you open Neovim like `nvim`.
 -- Example usage:
@@ -261,7 +278,12 @@ now_if_args(function()
 
   -- Advertise to servers that Neovim now supports certain set of completion and
   -- signature features through 'mini.completion'.
-  vim.lsp.config('*', { capabilities = MiniCompletion.get_lsp_capabilities() })
+  local capabilities = MiniCompletion.get_lsp_capabilities()
+  -- Neovim says by default that it supports signatures without active parameter
+  -- (`null` one), but 'mini.completion' throws error on it. Like with JETLS on
+  -- `Gamma(1, 1)`. Don't advertise this, so servers just omit active parameter.
+  capabilities.textDocument.signatureHelp.signatureInformation.noActiveParameterSupport = false
+  vim.lsp.config('*', { capabilities = capabilities })
 end)
 
 -- Navigate and manipulate file system
@@ -476,7 +498,6 @@ later(function()
       { mode = { 'n', 'x' }, keys = '"' },        -- Registers
       { mode = { 'i', 'c' }, keys = '<C-r>' },
       { mode =   'n',        keys = '<C-w>' },    -- Window commands
-      { mode = { 'n', 'x' }, keys = 's' },        -- `s` key (mini.surround, etc.)
       { mode = { 'n', 'x' }, keys = 'z' },        -- `z` key
     },
   })
@@ -602,7 +623,7 @@ later(function() require('mini.indentscope').setup() end)
 -- - Press `<CR>` to accept or `<Esc>` to cancel.
 --
 -- Example usage (usually works together with other plugins and modules):
--- - `saiwf` and type a function name to wrap a word with 'mini.surround'
+-- - `gzaiwf` and type a function name to wrap a word with 'mini.surround'
 -- - `<Leader>lr` and type a new value to use with LSP rename
 -- - `<Leader>fg` + `<C-o>` and type a custom filter glob for `grep_live` picker
 -- - `:h vim.ui.input()` - implemented with 'mini.input'.
@@ -870,21 +891,28 @@ later(function() require('mini.splitjoin').setup() end)
 --
 -- Example usage (this may feel intimidating at first, but after practice it
 -- becomes second nature during text editing):
--- - `saiw)` - *s*urround *a*dd for *i*nside *w*ord parenthesis (`)`)
--- - `sdf`   - *s*urround *d*elete *f*unction call (like `f(var)` -> `var`)
--- - `srb[`  - *s*urround *r*eplace *b*racket (any of [], (), {}) with padded `[`
--- - `sf*`   - *s*urround *f*ind right part of `*` pair (like bold in markdown)
--- - `shf`   - *s*urround *h*ighlight current *f*unction call
--- - `srn{{` - *s*urround *r*eplace *n*ext curly bracket `{` with padded `{`
--- - `sdl'`  - *s*urround *d*elete *l*ast quote pair (`'`)
--- - `vaWsa<Space>` - *v*isually select *a*round *W*ORD and *s*urround *a*dd
---                    spaces (`<Space>`)
+-- - `gzaiw)` - *s*urround *a*dd for *i*nside *w*ord parenthesis (`)`)
+-- - `gzdf`  - *s*urround *d*elete *f*unction call (like `f(var)` -> `var`)
+-- - `gzrb[` - *s*urround *r*eplace *b*racket (any of [], (), {}) with padded `[`
+-- - `gzf*`  - *s*urround *f*ind right part of `*` pair (like bold in markdown)
+-- - `gzhf`  - *s*urround *h*ighlight current *f*unction call
+-- - `gzrn{{` - *s*urround *r*eplace *n*ext curly bracket `{` with padded `{`
+-- - `gzdl'` - *s*urround *d*elete *l*ast quote pair (`'`)
+-- - `vaWgza<Space>` - *v*isually select *a*round *W*ORD and *s*urround *a*dd
+--                     spaces (`<Space>`)
 --
 -- See also:
 -- - `:h MiniSurround-builtin-surroundings` - list of all supported surroundings
 -- - `:h MiniSurround-surrounding-specification` - examples of custom surroundings
 -- - `:h MiniSurround-vim-surround-config` - alternative set of action mappings
-later(function() require('mini.surround').setup() end)
+--
+-- Mappings start with `gz` instead of default `s`, which is used for 'leap.nvim'
+-- (see 'plugin/50_jump2d.lua'). Otherwise `sd...` deletes surrounding.
+later(function()
+  require('mini.surround').setup({
+    mappings = { add = 'gza', delete = 'gzd', find = 'gzf', find_left = 'gzF', highlight = 'gzh', replace = 'gzr' },
+  })
+end)
 
 -- Highlight and remove trailspace. Temporarily stops highlighting in Insert mode
 -- to reduce noise when typing. Example usage:

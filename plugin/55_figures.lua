@@ -12,13 +12,15 @@
 --   matching color schemes (see 'repl/nvim_fig/__init__.py' how to switch).
 -- - Julia: display for anything that can be shown as PNG (Plots.jl, Makie,
 --   images, etc.). Loaded with `julia -L`.
+-- - R: profile which saves the current plot after every command. Figures are
+--   resized to fill the pane.
 --
 -- Neovim watches that directory and shows new figures with image viewer from
 -- 'snacks.nvim'. It needs a terminal with kitty graphics protocol (kitty,
 -- ghostty, wezterm). Previous figures are kept and can be cycled through.
 --
 -- Mappings:
--- - `rf` - toggle figure pane.
+-- - `rz` - toggle figure pane.
 -- - `r[` / `r]` - show previous / next figure.
 
 Config.later(function() vim.pack.add({ 'https://github.com/folke/snacks.nvim' }) end)
@@ -51,6 +53,7 @@ M.env = function()
     MPLBACKEND = 'module://nvim_fig',
     MATPLOTLIBRC = theme and string.format('%s/nvim_fig/%s.mplstyle', repl_dir, theme) or nil,
     PYTHONPATH = pythonpath == '' and repl_dir or (repl_dir .. ':' .. pythonpath),
+    R_PROFILE_USER = repl_dir .. '/nvim_fig.R',
   }
 end
 
@@ -85,14 +88,12 @@ M.win = function() return buf and find_win(buf) end
 -- Tell REPL the pane size in pixels, so that figures can fill it. DPI is chosen
 -- so that text in figures is scaled like text in terminal.
 local pane_size
-local write_pane_size = function()
-  local win = M.win()
-  if not win then return end
+local write_pane_size = function(width, height)
   local term = Snacks.image.terminal.size()
   local size = string.format(
     '%d %d %d',
-    math.floor(vim.api.nvim_win_get_width(win) * term.cell_width),
-    math.floor(vim.api.nvim_win_get_height(win) * term.cell_height),
+    math.floor(width * term.cell_width),
+    math.floor(height * term.cell_height),
     math.floor(96 * term.scale)
   )
   if size == pane_size then return end
@@ -103,6 +104,19 @@ local write_pane_size = function()
   vim.uv.fs_rename(tmp, M.dir .. '/pane')
 end
 
+local update_pane_size = function()
+  local win = M.win()
+  if win then write_pane_size(vim.api.nvim_win_get_width(win), vim.api.nvim_win_get_height(win)) end
+end
+
+-- Before the pane is shown, guess its size: it takes top half of REPL window.
+-- Otherwise the first figure from R doesn't fill the pane until the next
+-- command, as R can't redraw figures while waiting for input.
+M.guess_pane_size = function(repl_win)
+  if M.win() then return end
+  write_pane_size(vim.api.nvim_win_get_width(repl_win), math.floor(vim.api.nvim_win_get_height(repl_win) / 2))
+end
+
 local show = function(i)
   current = i
   if not M.win() then
@@ -111,7 +125,7 @@ local show = function(i)
       or { split = 'right', win = -1, width = M.column_width() }
     vim.wo[vim.api.nvim_open_win(get_buf(), false, config)].winfixwidth = true
   end
-  write_pane_size()
+  update_pane_size()
   Snacks.image.buf.attach(get_buf(), { src = figures[i].file })
 end
 
@@ -161,7 +175,7 @@ M.cycle = function(direction)
   vim.api.nvim_echo({ { string.format('Figure %d/%d', current, n) } }, false, {})
 end
 
-Config.new_autocmd({ 'WinResized', 'VimResized' }, '*', write_pane_size, 'Send figure pane size to REPL')
+Config.new_autocmd({ 'WinResized', 'VimResized' }, '*', update_pane_size, 'Send figure pane size to REPL')
 
 -- 'snacks.nvim' caches info about every shown image
 Config.new_autocmd('VimLeavePre', '*', function()
@@ -172,6 +186,6 @@ Config.new_autocmd('VimLeavePre', '*', function()
   end
 end, 'Clean cache of figures')
 
-vim.keymap.set('n', 'rf', M.toggle, { desc = 'Toggle figure pane' })
+vim.keymap.set('n', 'rz', M.toggle, { desc = 'Toggle figure pane' })
 vim.keymap.set('n', 'r[', function() M.cycle(-1) end, { desc = 'Previous figure' })
 vim.keymap.set('n', 'r]', function() M.cycle(1) end, { desc = 'Next figure' })

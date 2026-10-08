@@ -57,6 +57,8 @@ now_if_args(function()
     'markdown',
     'python',
     'julia',
+    'r',
+    'typst',
     -- Add here more languages with which you want to use tree-sitter
     -- To see available languages:
     -- - Execute `:=require('nvim-treesitter').get_available()`
@@ -110,6 +112,12 @@ now_if_args(function()
   'jetls',
   'ty',
   'ruff',
+  -- R formatting (from Posit). Installed with Mason.
+  'air',
+  -- R completion, hover, diagnostics, etc. Installed with Mason.
+  'r_language_server',
+  -- Typst. Installed with Mason.
+  'tinymist',
   })
 end)
 

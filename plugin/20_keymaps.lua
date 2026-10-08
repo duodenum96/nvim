@@ -92,10 +92,22 @@ local new_scratch_buffer = function()
   vim.api.nvim_win_set_buf(0, vim.api.nvim_create_buf(true, true))
 end
 
+-- Delete all listed buffers, possibly keeping current one. Terminals (like REPL)
+-- are kept, as deleting them stops their process.
+local delete_buffers = function(keep_current)
+  local cur_buf = vim.api.nvim_get_current_buf()
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    local keep = (keep_current and b == cur_buf) or vim.bo[b].buftype == 'terminal'
+    if vim.bo[b].buflisted and not keep then MiniBufremove.delete(b) end
+  end
+end
+
 nmap_leader('ba', '<Cmd>b#<CR>',                                 'Alternate')
 nmap_leader('bd', '<Cmd>lua MiniBufremove.delete()<CR>',         'Delete')
 nmap_leader('bD', '<Cmd>lua MiniBufremove.delete(0, true)<CR>',  'Delete!')
+nmap_leader('bo', function() delete_buffers(true) end,           'Delete others')
 nmap_leader('bs', new_scratch_buffer,                            'Scratch')
+nmap_leader('bx', function() delete_buffers(false) end,          'Delete all')
 nmap_leader('bw', '<Cmd>lua MiniBufremove.wipeout()<CR>',        'Wipeout')
 nmap_leader('bW', '<Cmd>lua MiniBufremove.wipeout(0, true)<CR>', 'Wipeout!')
 

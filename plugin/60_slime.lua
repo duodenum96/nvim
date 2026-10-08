@@ -18,20 +18,69 @@ vim.g.slime_default_config = {
     jobid = vim.v.null,
 }
 
+-- Conda environments for Python REPL ===========================================
+
+local conda_root = vim.env.MAMBA_ROOT_PREFIX or vim.fn.expand("~/miniforge3")
+
+-- Environment of Python REPL, picked with `rs`. Remembered across sessions.
+local python_env_file = vim.fn.stdpath("state") .. "/repl_python_env"
+local python_env = vim.fn.filereadable(python_env_file) == 1 and vim.fn.readfile(python_env_file)[1]
+    or (conda_root .. "/envs/numpyro")
+
+-- Base environment, the ones in conda's list and in 'envs/' of conda root
+local function conda_envs()
+    local paths = { conda_root }
+    vim.list_extend(paths, vim.fn.glob(conda_root .. "/envs/*", false, true))
+    local list = vim.fn.expand("~/.conda/environments.txt")
+    if vim.fn.filereadable(list) == 1 then
+        vim.list_extend(paths, vim.fn.readfile(list))
+    end
+
+    local envs, seen = {}, {}
+    for _, path in ipairs(paths) do
+        path = vim.fs.normalize(path)
+        if not seen[path] and vim.fn.executable(path .. "/bin/python") == 1 then
+            seen[path] = true
+            table.insert(envs, path)
+        end
+    end
+    return envs
+end
+
+local function conda_env_name(path)
+    return path == vim.fs.normalize(conda_root) and "base" or vim.fs.basename(path)
+end
+
 -- REPL configuration per filetype
 local repl_commands = {
-    -- python = "mamba activate aj_int && python",
-    python = 'eval "$(mamba shell hook --shell zsh)" && mamba activate numpyro && python',
+    python = function()
+        return 'eval "$(mamba shell hook --shell zsh)" && mamba activate '
+            .. vim.fn.shellescape(python_env) .. " && python"
+    end,
     -- `-L` files show plots in figure pane (see 'plugin/55_figures.lua') and
     -- run JET analyses from Neovim (see 'plugin/58_jet.lua')
     julia = "julia --project=. --threads=20 -L " .. vim.fn.shellescape(Config.figures.julia_file)
         .. " -L " .. vim.fn.shellescape(Config.jet.julia_file),
     -- julia = "julia --project=. --threads=20 --sysimage=./sys.so",
+    r = "R --no-save",
 }
 
 -- Store terminal jobid globally
 local terminal_jobid = nil
 local terminal_bufnr = nil
+-- Conda environment of the running REPL, if it is Python
+local repl_env = nil
+
+-- Make slime send to the REPL from all buffers, also after it was restarted
+local function set_slime_target(jobid)
+    local config = { jobid = jobid, target_pane = "" }
+    vim.g.slime_default_config = config
+    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.b[buf].slime_config then
+            vim.b[buf].slime_config = config
+        end
+    end
+end
 
 -- Open window for REPL buffer in the right column: below figure pane (see
 -- 'plugin/55_figures.lua') if it is shown, otherwise as the whole column
@@ -78,6 +127,9 @@ local function start_repl_for_filetype()
         print("No REPL configured for filetype: " .. ft)
         return nil
     end
+    if type(cmd) == "function" then
+        cmd = cmd()
+    end
 
     if terminal_jobid and terminal_bufnr then
         if vim.api.nvim_buf_is_valid(terminal_bufnr) then
@@ -86,15 +138,51 @@ local function start_repl_for_filetype()
     end
 
     local buf = vim.api.nvim_create_buf(true, false)
-    vim.api.nvim_win_call(open_repl_win(buf), function()
+    local win = open_repl_win(buf)
+    Config.figures.guess_pane_size(win)
+    vim.api.nvim_win_call(win, function()
         -- Environment makes REPL send plots to figure pane and JET reports to Neovim
         local env = vim.tbl_extend("force", Config.figures.env(), Config.jet.env())
         terminal_jobid = vim.fn.jobstart(cmd, { term = true, env = env })
     end)
     terminal_bufnr = buf
+    repl_env = ft == "python" and python_env or nil
     Config.figures.repl_buf = buf
+    set_slime_target(terminal_jobid)
 
     return terminal_jobid
+end
+
+-- Start REPL. For Python, first pick conda environment: if Python REPL is
+-- running in another one, it is restarted.
+local function start_repl()
+    local repl_running = terminal_bufnr and vim.api.nvim_buf_is_valid(terminal_bufnr)
+    if vim.bo.filetype ~= "python" or (repl_running and not repl_env) then
+        return start_repl_for_filetype()
+    end
+
+    -- Current environment first, others by name
+    local envs = conda_envs()
+    local sort_key = function(env)
+        return (env == python_env and "0" or "1") .. conda_env_name(env)
+    end
+    table.sort(envs, function(a, b) return sort_key(a) < sort_key(b) end)
+
+    local buf = vim.api.nvim_get_current_buf()
+    vim.ui.select(envs, { prompt = "Conda environment", format_item = conda_env_name }, function(env)
+        if not env or (repl_running and env == repl_env) then
+            return
+        end
+        python_env = env
+        vim.fn.writefile({ env }, python_env_file)
+
+        if repl_running then
+            -- Stops its job too
+            vim.api.nvim_buf_delete(terminal_bufnr, { force = true })
+            terminal_jobid, terminal_bufnr = nil, nil
+        end
+        vim.api.nvim_buf_call(buf, start_repl_for_filetype)
+    end)
 end
 
 local function scroll_terminal_to_bottom()
@@ -129,40 +217,17 @@ local function get_current_node()
     return tree:root():named_descendant_for_range(row, col, row, col)
 end
 
+-- Statement at the top level of the file (child of the root node), so that it
+-- works for any language with a tree-sitter parser (Python, Julia, R, ...)
 local function get_top_level_node()
     local node = get_current_node()
-    if not node then
-        return nil
-    end
-
-    local top_level_types = {
-        "function_definition",
-        "class_definition",
-        "decorated_definition",
-        "expression_statement",
-        "assignment",
-        "if_statement",
-        "for_statement",
-        "while_statement",
-        "with_statement",
-        "try_statement",
-        "import_statement",
-        "import_from_statement",
-    }
 
     while node do
-        local node_type = node:type()
-
-        for _, type in ipairs(top_level_types) do
-            if node_type == type then
-                local parent = node:parent()
-                if parent and parent:type() == "module" then
-                    return node
-                end
-            end
+        local parent = node:parent()
+        if parent and not parent:parent() then
+            return node
         end
-
-        node = node:parent()
+        node = parent
     end
 
     return nil
@@ -196,7 +261,7 @@ vim.api.nvim_create_autocmd("FileType", {
     end,
 })
 
-vim.api.nvim_create_user_command("ReplStart", start_repl_for_filetype, {})
+vim.api.nvim_create_user_command("ReplStart", function() start_repl() end, {})
 
 local function ensure_slime_config()
     if not terminal_jobid then
@@ -314,7 +379,7 @@ vim.keymap.set("n", "r", "<Plug>SlimeMotionSend")
 --   end)
 -- end, { noremap = true, silent = true })
 
-vim.keymap.set("n", "rs", start_repl_for_filetype, { noremap = true, silent = true, desc = "Start REPL" })
+vim.keymap.set("n", "rs", start_repl, { noremap = true, silent = true, desc = "Start REPL" })
 
 -- Toggle terminal visibility
 vim.keymap.set("n", "rt", function()
